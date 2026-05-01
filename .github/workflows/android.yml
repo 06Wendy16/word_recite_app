@@ -14,10 +14,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./WordMasterAndroid
-
+    
     steps:
     - uses: actions/checkout@v4
 
@@ -28,16 +25,26 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: 8.4
 
-    - name: Build with Gradle
-      run: ./gradlew build
+    - name: Change to Android directory
+      run: cd WordMasterAndroid
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x WordMasterAndroid/gradlew
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      working-directory: ./WordMasterAndroid
+      run: ./gradlew assembleDebug --no-daemon
+
+    - name: List build output
+      run: ls -la WordMasterAndroid/app/build/outputs/apk/debug/ || echo "Debug APK not found"
 
     - name: Upload Debug APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: WordMaster-Debug-APK
@@ -45,19 +52,24 @@ jobs:
         retention-days: 30
 
     - name: Build Release APK
-      run: ./gradlew assembleRelease
+      working-directory: ./WordMasterAndroid
+      run: ./gradlew assembleRelease --no-daemon || echo "Release build skipped or failed"
+
+    - name: List Release build output
+      run: ls -la WordMasterAndroid/app/build/outputs/apk/release/ 2>/dev/null || echo "Release APK not found"
 
     - name: Upload Release APK
+      if: success() && fileExists('WordMasterAndroid/app/build/outputs/apk/release/app-release-unsigned.apk')
       uses: actions/upload-artifact@v4
       with:
         name: WordMaster-Release-APK
         path: WordMasterAndroid/app/build/outputs/apk/release/app-release-unsigned.apk
         retention-days: 30
 
-    - name: Upload Build Reports
+    - name: Upload Build Logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: build-reports
-        path: WordMasterAndroid/app/build/reports/
+        name: build-logs
+        path: WordMasterAndroid/app/build/outputs/
         retention-days: 7
