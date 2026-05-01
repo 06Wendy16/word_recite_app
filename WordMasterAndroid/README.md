@@ -111,3 +111,4 @@ app/src/main/java/com/wordmaster/
 ## 许可证
 
 MIT License
+# Build Trigger
