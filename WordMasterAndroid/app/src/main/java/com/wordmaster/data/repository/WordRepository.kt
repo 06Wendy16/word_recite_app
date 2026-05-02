@@ -25,7 +25,7 @@ class WordRepository @Inject constructor(
     
     suspend fun getWordById(wordId: String): Word? = wordDao.getWordById(wordId)
     
-    suspend fun getWordByText(text: String): Word? = wordDao.getWordByText(text)
+    suspend fun getWordByText(text: String): Word? = wordDao.getWordByText(text.lowercase())
     
     suspend fun saveWord(word: Word) = wordDao.insertWord(word)
     

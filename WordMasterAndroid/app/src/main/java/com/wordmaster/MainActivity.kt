@@ -138,6 +138,20 @@ fun WordMasterApp() {
                     },
                     onNavigateToSettings = {
                         navController.navigate("settings")
+                    },
+                    onNavigateToImport = {
+                        navController.navigate("import")
+                    }
+                )
+            }
+            
+            composable("import") {
+                ImportScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onImportComplete = {
+                        navController.navigate(BottomNavItem.Articles.route) {
+                            popUpTo(BottomNavItem.Home.route)
+                        }
                     }
                 )
             }

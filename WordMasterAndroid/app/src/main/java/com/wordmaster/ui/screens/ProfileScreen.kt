@@ -18,7 +18,8 @@ import com.wordmaster.R
 @Composable
 fun ProfileScreen(
     onNavigateToStatistics: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToImport: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -48,6 +49,14 @@ fun ProfileScreen(
             }
             
             // 菜单项
+            item {
+                ProfileMenuItem(
+                    icon = Icons.Default.Download,
+                    title = stringResource(R.string.import_short_articles),
+                    onClick = onNavigateToImport
+                )
+            }
+            
             item {
                 ProfileMenuItem(
                     icon = Icons.Default.BarChart,

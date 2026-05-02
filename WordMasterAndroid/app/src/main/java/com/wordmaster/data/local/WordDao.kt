@@ -19,7 +19,7 @@ interface WordDao {
     @Query("SELECT * FROM words WHERE id = :wordId")
     suspend fun getWordById(wordId: String): Word?
     
-    @Query("SELECT * FROM words WHERE text = :text LIMIT 1")
+    @Query("SELECT * FROM words WHERE LOWER(text) = LOWER(:text) LIMIT 1")
     suspend fun getWordByText(text: String): Word?
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)

@@ -35,5 +35,7 @@
     <string name="settings">设置</string>
     <string name="notification">通知提醒</string>
     <string name="dark_mode">深色模式</string>
+    <string name="import_articles">导入短文</string>
+    <string name="import_short_articles">导入短文</string>
     <string name="about">关于</string>
 </resources>
