@@ -188,6 +188,17 @@ fun WordCard(
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                     
+                    // 词族
+                    word.wordFamily?.let { family ->
+                        Text(
+                            text = "词族: $family",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
                     // 例句
                     word.exampleSentence?.let { example ->
                         Text(

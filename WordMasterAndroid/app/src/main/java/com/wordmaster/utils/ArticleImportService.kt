@@ -43,11 +43,14 @@ data class ImportProgress(
 )
 
 /**
- * 识别出的单词对（英文+中文释义）
+ * 识别出的单词对（英文+中文释义+音标+词性+词族）
  */
 data class WordDefinition(
     val english: String,
-    val chineseDefinition: String?
+    val chineseDefinition: String?,
+    val phonetic: String? = null,
+    val partOfSpeech: String? = null,
+    val wordFamily: String? = null
 )
 
 @Singleton
@@ -108,97 +111,147 @@ class ArticleImportService @Inject constructor(
         folders
     }
 
-    /**
-     * 从图片中提取单词和释义
-     */
-    private suspend fun extractWordsFromImage(imagePath: String): List<WordDefinition> {
-        val file = File(imagePath)
-        if (!file.exists()) return emptyList()
+/**
+ * 从图片中提取单词和释义，以及音标、词性、词族
+ */
+private suspend fun extractWordsFromImage(imagePath: String): List<WordDefinition> {
+    val file = File(imagePath)
+    if (!file.exists()) return emptyList()
 
-        return try {
-            val uri = Uri.fromFile(file)
-            val result = ocrService.recognizeTextBlocksFromUri(uri)
+    return try {
+        val uri = Uri.fromFile(file)
+        val result = ocrService.recognizeTextBlocksFromUri(uri)
 
-            if (result.isSuccess) {
-                val blocks = result.getOrNull() ?: emptyList()
-                extractWordDefinitionPairs(blocks)
+        if (result.isSuccess) {
+            val blocks = result.getOrNull() ?: emptyList()
+            extractWordDefinitionPairs(blocks)
+        } else {
+            // 如果 OCR 失败，尝试只提取英文单词
+            val result2 = ocrService.extractEnglishWordsFromUri(uri)
+            if (result2.isSuccess) {
+                result2.getOrNull()?.map { WordDefinition(it, null, null, null, null) } ?: emptyList()
             } else {
-                // 如果 OCR 失败，尝试只提取英文单词
-                val result2 = ocrService.extractEnglishWordsFromUri(uri)
-                if (result2.isSuccess) {
-                    result2.getOrNull()?.map { WordDefinition(it, null) } ?: emptyList()
-                } else {
-                    emptyList()
-                }
+                emptyList()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        emptyList()
+    }
+}
+
+/**
+ * 从文本块中提取英文-中文配对，并尝试提取音标、词性、词族
+ * 百词斩风格的图片通常是：单词 + 音标 + 词性 + 中文释义 + [词族]
+ */
+private fun extractWordDefinitionPairs(blocks: List<TextBlock>): List<WordDefinition> {
+    if (blocks.isEmpty()) return emptyList()
+
+    // 收集所有文本行并按垂直位置排序
+    val allLines = mutableListOf<Pair<Int, String>>()
+    for (block in blocks) {
+        val y = block.boundingBox?.top ?: 0
+        for (line in block.lines) {
+            val trimmed = line.trim()
+            if (trimmed.isNotBlank()) {
+                allLines.add(Pair(y, trimmed))
+            }
         }
     }
+    allLines.sortBy { it.first }
+    val sortedLines = allLines.map { it.second }
 
-    /**
-     * 从文本块中提取英文-中文配对
-     * 百词斩风格的图片通常是：上半部分是英文单词，下半部分是中文释义
-     */
-    private fun extractWordDefinitionPairs(blocks: List<TextBlock>): List<WordDefinition> {
-        if (blocks.isEmpty()) return emptyList()
+    if (sortedLines.isEmpty()) return emptyList()
 
-        // 收集所有文本行并按垂直位置排序
-        val allLines = blocks.flatMap { block ->
-            block.lines.map { line -> line.trim() }
-        }.filter { it.isNotBlank() }
+    val pairs = mutableListOf<WordDefinition>()
 
-        if (allLines.isEmpty()) return emptyList()
+    // 策略1：按行交替配对（假设格式为：单词行 + 释义行）
+    var i = 0
+    while (i < sortedLines.size) {
+        val current = sortedLines[i].trim()
 
-        val pairs = mutableListOf<WordDefinition>()
+        // 如果当前行是英文，尝试找下一个中文行作为释义
+        if (current.isPrimarilyEnglish() && current.isEnglishOnly()) {
+            val english = current.lowercase()
+            var chineseDef: String? = null
+            var phonetic: String? = null
+            var partOfSpeech: String? = null
+            var wordFamily: String? = null
 
-        // 策略1：按行交替配对（假设格式为：单词行 + 释义行）
-        var i = 0
-        while (i < allLines.size) {
-            val current = allLines[i].trim()
+            // 在当前行及附近行查找音标、词性
+            val wordsInCurrentLine = current.split(Regex("\\s+"))
+            for (word in wordsInCurrentLine) {
+                val p = extractPhonetic(word)
+                if (p != null) {
+                    phonetic = p
+                }
+                val pos = extractPartOfSpeech(word)
+                if (pos != null) {
+                    partOfSpeech = pos
+                }
+            }
 
-            // 如果当前行是英文，尝试找下一个中文行作为释义
-            if (current.isPrimarilyEnglish() && current.isEnglishOnly()) {
-                val english = current.lowercase()
-                var chineseDef: String? = null
-
-                // 找下一个非英文行作为释义
-                for (j in i + 1 until minOf(i + 3, allLines.size)) {
-                    val next = allLines[j].trim()
-                    if (!next.isEnglishOnly() && next.containsChinese()) {
+            // 找下一个非英文行作为释义，同时查找词族
+            for (j in i + 1 until minOf(i + 5, sortedLines.size)) {
+                val next = sortedLines[j].trim()
+                if (!next.isEnglishOnly() && next.containsChinese()) {
+                    // 检查是否包含词族信息
+                    if (next.contains("词族") || next.contains("family") || next.contains("相关")) {
+                        wordFamily = next
+                    } else if (chineseDef == null) {
                         chineseDef = next
-                        break
+                    }
+                } else if (next.isEnglishOnly()) {
+                    // 检查是否是词族（通常格式：word1, word2, word3）
+                    if (next.contains(",") || next.contains(";")) {
+                        wordFamily = next
                     }
                 }
-
-                pairs.add(WordDefinition(english, chineseDef))
             }
-            i++
-        }
 
-        // 如果策略1失败，尝试策略2：纯英文单词提取
-        if (pairs.isEmpty()) {
-            for (line in allLines) {
-                val words = line.extractEnglishWords()
-                for (word in words) {
-                    // 检查下一行是否有中文释义
-                    val lineIndex = allLines.indexOf(line)
-                    var chineseDef: String? = null
-                    if (lineIndex >= 0 && lineIndex + 1 < allLines.size) {
-                        val nextLine = allLines[lineIndex + 1]
-                        if (!nextLine.isEnglishOnly() && nextLine.containsChinese()) {
-                            chineseDef = nextLine
-                        }
-                    }
-                    pairs.add(WordDefinition(word.lowercase(), chineseDef))
-                }
-            }
+            pairs.add(WordDefinition(english, chineseDef, phonetic, partOfSpeech, wordFamily))
         }
-
-        // 去重
-        return pairs.distinctBy { it.english.lowercase() }
+        i++
     }
+
+    // 如果策略1失败，尝试策略2：纯英文单词提取
+    if (pairs.isEmpty()) {
+        for (line in sortedLines) {
+            val words = line.extractEnglishWords()
+            for (word in words) {
+                // 检查下一行是否有中文释义
+                val lineIndex = sortedLines.indexOf(line)
+                var chineseDef: String? = null
+                if (lineIndex >= 0 && lineIndex + 1 < sortedLines.size) {
+                    val nextLine = sortedLines[lineIndex + 1]
+                    if (!nextLine.isEnglishOnly() && nextLine.containsChinese()) {
+                        chineseDef = nextLine
+                    }
+                }
+                pairs.add(WordDefinition(word.lowercase(), chineseDef, null, null, null))
+            }
+        }
+    }
+
+    // 去重
+    return pairs.distinctBy { it.english.lowercase() }
+}
+
+/**
+ * 尝试从字符串中提取音标（如 /æpəl/）
+ */
+private fun extractPhonetic(text: String): String? {
+    val phoneticRegex = Regex("""/[^\s]+/""")
+    return phoneticRegex.find(text)?.value
+}
+
+/**
+ * 尝试从字符串中提取词性（如 n., v., adj., adv., etc.）
+ */
+private fun extractPartOfSpeech(text: String): String? {
+    val posRegex = Regex("""\b(n\.|v\.|adj\.|adv\.|prep\.|conj\.|pron\.|int\.|art\.|num\.)\b""", RegexOption.IGNORE_CASE)
+    return posRegex.find(text)?.value
+}
 
     /**
      * 导入选定的短文文件夹
@@ -232,16 +285,18 @@ class ArticleImportService @Inject constructor(
 
                 val wordDefs = extractWordsFromImage(imagePath)
 
-                for (def in wordDefs) {
-                    val word = Word(
-                        text = def.english.lowercase(),
-                        definition = def.chineseDefinition,
-                        imagePath = imagePath,
-                        // articleId 稍后设置
-                        createdAt = System.currentTimeMillis()
-                    )
-                    allWordsInArticle.add(word)
-                }
+            for (def in wordDefs) {
+                val word = Word(
+                    text = def.english.lowercase(),
+                    phonetic = def.phonetic,
+                    partOfSpeech = def.partOfSpeech,
+                    definition = def.chineseDefinition,
+                    wordFamily = def.wordFamily,
+                    imagePath = imagePath,
+                    createdAt = System.currentTimeMillis()
+                )
+                allWordsInArticle.add(word)
+            }
 
                 processedImages++
             }

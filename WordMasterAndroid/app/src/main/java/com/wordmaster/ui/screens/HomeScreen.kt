@@ -30,11 +30,13 @@ fun HomeScreen(
     onNavigateToArticles: () -> Unit,
     onNavigateToReview: () -> Unit,
     onNavigateToStatistics: () -> Unit,
+    onNavigateToImport: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val todayTask by viewModel.todayTask.collectAsState()
     val statistics by viewModel.statistics.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val needsImport by viewModel.needsImport.collectAsState()
     
     Scaffold(
         topBar = {
@@ -58,6 +60,13 @@ fun HomeScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // 导入引导 Banner（首次使用，数据库为空时显示）
+            if (needsImport) {
+                item {
+                    ImportBanner(onClick = onNavigateToImport)
+                }
+            }
+
             // 今日任务卡片
             item {
                 TodayTaskCard(
@@ -325,6 +334,54 @@ fun QuickActionButton(
                 style = MaterialTheme.typography.bodyLarge,
                 color = color
             )
+        }
+    }
+}
+
+@Composable
+fun ImportBanner(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "📥",
+                style = MaterialTheme.typography.displayLarge
+            )
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "尚未导入单词",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "点击此处从短文图片中导入单词（自动识别音标、词性、词义）",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+            }
+            Button(
+                onClick = onClick,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("开始导入")
+            }
         }
     }
 }

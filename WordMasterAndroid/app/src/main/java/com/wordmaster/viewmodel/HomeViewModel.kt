@@ -26,6 +26,10 @@ class HomeViewModel @Inject constructor(
     private val _statistics = MutableStateFlow(StudyStatistics())
     val statistics: StateFlow<StudyStatistics> = _statistics.asStateFlow()
     
+    /** 数据库是否为空（需要导入单词）*/
+    val needsImport: StateFlow<Boolean> = statistics.map { it.totalWords == 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
+    
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     

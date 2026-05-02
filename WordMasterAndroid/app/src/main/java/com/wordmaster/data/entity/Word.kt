@@ -14,6 +14,7 @@ data class Word(
     val partOfSpeech: String? = null,
     val definition: String? = null,
     val exampleSentence: String? = null,
+    val wordFamily: String? = null,
     val imagePath: String? = null,
     val articleId: String? = null,
     val createdAt: Long = System.currentTimeMillis(),

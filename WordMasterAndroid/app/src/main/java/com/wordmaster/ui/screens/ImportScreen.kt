@@ -38,6 +38,14 @@ fun ImportScreen(
     val isImporting by viewModel.isImporting.collectAsState()
     val importProgress by viewModel.importProgress.collectAsState()
     val importResult by viewModel.importResult.collectAsState()
+    val shouldAutoImport by viewModel.shouldAutoImport.collectAsState()
+
+    // 首次扫描完成后，若 DB 为空则自动开始导入
+    LaunchedEffect(shouldAutoImport) {
+        if (shouldAutoImport && !isImporting) {
+            viewModel.startImport()
+        }
+    }
 
     // 导入完成后弹窗
     importResult?.let { result ->

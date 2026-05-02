@@ -89,6 +89,9 @@ fun WordMasterApp() {
                     },
                     onNavigateToStatistics = {
                         navController.navigate("statistics")
+                    },
+                    onNavigateToImport = {
+                        navController.navigate("import")
                     }
                 )
             }

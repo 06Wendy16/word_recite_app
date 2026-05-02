@@ -2,6 +2,7 @@ package com.wordmaster.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wordmaster.data.repository.WordRepository
 import com.wordmaster.utils.ArticleFolder
 import com.wordmaster.utils.ArticleImportService
 import com.wordmaster.utils.ImportProgress
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ImportViewModel @Inject constructor(
-    private val articleImportService: ArticleImportService
+    private val articleImportService: ArticleImportService,
+    private val wordRepository: WordRepository
 ) : ViewModel() {
 
     private val _availableFolders = MutableStateFlow<List<ArticleFolder>>(emptyList())
@@ -34,6 +36,10 @@ class ImportViewModel @Inject constructor(
 
     val importProgress: StateFlow<ImportProgress> = articleImportService.importProgress
 
+    /** 是否需要自动导入（数据库为空且扫描到文件夹）*/
+    private val _shouldAutoImport = MutableStateFlow(false)
+    val shouldAutoImport: StateFlow<Boolean> = _shouldAutoImport.asStateFlow()
+
     init {
         scanFolders()
     }
@@ -41,11 +47,17 @@ class ImportViewModel @Inject constructor(
     fun scanFolders() {
         viewModelScope.launch {
             _isScanning.value = true
+            _shouldAutoImport.value = false
             try {
                 val folders = articleImportService.scanArticleFolders()
                 _availableFolders.value = folders
-                // 默认全选
                 _selectedFolders.value = folders.map { it.name }.toSet()
+
+                // 数据库为空时，标记需要自动导入
+                val wordCount = wordRepository.getWordCount()
+                if (wordCount == 0 && folders.isNotEmpty()) {
+                    _shouldAutoImport.value = true
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
