@@ -1,6 +1,7 @@
 package com.wordmaster.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -162,7 +163,3 @@ fun ProfileMenuItem(
     }
 }
 
-// 添加 clickable 扩展
-private fun Modifier.clickable(onClick: () -> Unit): Modifier = this.then(
-    androidx.compose.foundation.clickable(onClick = onClick)
-)

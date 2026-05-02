@@ -42,12 +42,16 @@ class ArticleViewModel @Inject constructor(
                     ArticleFilter.COMPLETED -> articleRepository.getCompletedArticles()
                 }
                 
+                var isFirstLoad = true
                 flow.collect { articleList ->
                     _articles.value = articleList
+                    if (isFirstLoad) {
+                        _isLoading.value = false
+                        isFirstLoad = false
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-            } finally {
                 _isLoading.value = false
             }
         }

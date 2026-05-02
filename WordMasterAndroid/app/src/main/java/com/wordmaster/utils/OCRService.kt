@@ -57,12 +57,8 @@ class OCRService @Inject constructor(
      * 识别并提取英文单词
      */
     suspend fun extractEnglishWordsFromUri(imageUri: Uri): Result<List<String>> {
-        return when (val result = recognizeTextFromUri(imageUri)) {
-            is Result.Success -> {
-                val words = extractEnglishWords(result.getOrNull() ?: emptyList())
-                Result.success(words)
-            }
-            is Result.Failure -> result
+        return recognizeTextFromUri(imageUri).map { lines ->
+            extractEnglishWords(lines)
         }
     }
     
@@ -70,12 +66,8 @@ class OCRService @Inject constructor(
      * 识别并提取英文单词（从 Bitmap）
      */
     suspend fun extractEnglishWordsFromBitmap(bitmap: Bitmap): Result<List<String>> {
-        return when (val result = recognizeTextFromBitmap(bitmap)) {
-            is Result.Success -> {
-                val words = extractEnglishWords(result.getOrNull() ?: emptyList())
-                Result.success(words)
-            }
-            is Result.Failure -> result
+        return recognizeTextFromBitmap(bitmap).map { lines ->
+            extractEnglishWords(lines)
         }
     }
     

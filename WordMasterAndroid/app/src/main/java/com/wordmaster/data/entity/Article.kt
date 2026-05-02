@@ -3,6 +3,7 @@ package com.wordmaster.data.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import java.util.Date

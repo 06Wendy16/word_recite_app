@@ -39,13 +39,11 @@ class AddWordViewModel @Inject constructor(
             _error.value = null
             
             try {
-                when (val result = ocrService.extractEnglishWordsFromUri(uri)) {
-                    is Result.Success -> {
-                        _recognizedWords.value = result.getOrNull() ?: emptyList()
-                    }
-                    is Result.Failure -> {
-                        _error.value = "识别失败: ${result.exceptionOrNull()?.message}"
-                    }
+                val result = ocrService.extractEnglishWordsFromUri(uri)
+                if (result.isSuccess) {
+                    _recognizedWords.value = result.getOrNull() ?: emptyList()
+                } else {
+                    _error.value = "识别失败: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
                 _error.value = "处理图片时出错: ${e.message}"
@@ -61,13 +59,11 @@ class AddWordViewModel @Inject constructor(
             _error.value = null
             
             try {
-                when (val result = ocrService.extractEnglishWordsFromBitmap(bitmap)) {
-                    is Result.Success -> {
-                        _recognizedWords.value = result.getOrNull() ?: emptyList()
-                    }
-                    is Result.Failure -> {
-                        _error.value = "识别失败: ${result.exceptionOrNull()?.message}"
-                    }
+                val result = ocrService.extractEnglishWordsFromBitmap(bitmap)
+                if (result.isSuccess) {
+                    _recognizedWords.value = result.getOrNull() ?: emptyList()
+                } else {
+                    _error.value = "识别失败: ${result.exceptionOrNull()?.message}"
                 }
             } catch (e: Exception) {
                 _error.value = "处理图片时出错: ${e.message}"
